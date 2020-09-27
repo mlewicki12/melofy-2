@@ -1,38 +1,102 @@
-.App {
-  text-align: center;
+
+@font-face {
+	font-family: "NauSea";
+	src: url("fonts/NauSea.ttf") format("truetype");
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+body {
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+button {
+  padding: 5px;
+  background-color: #F48FB1;
   color: white;
+
+  border: 1px solid #5a6268;
+  border-radius: 5px;
 }
 
-.App-link {
-  color: #61dafb;
+input {
+  padding: 5px;
+  width: 100%;
+
+  border: 1px solid #5a6268;
+  border-radius: 5px 5px 0 0;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+button:hover {
+  background-color: #5a6268;
+  cursor: pointer;
+}
+
+.flex-center {
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.header {
+  background-color: black;
+}
+
+.header h1 {
+  margin: 0;
+  color: #F48FB1;
+	font-family: "NauSea", Arial, sans;
+	font-size: 8em;
+  text-shadow: 0px 0px 15px #00c9bc;
+}
+
+.header p {
+  margin: 0;
+  color: white;
+  font-family: "NauSea", Arial, sans;
+}
+
+.main {
+  margin-top: 1rem;
+}
+
+.search-bar {
+  padding: 0.5rem;
+}
+
+.song-display {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: space-between;
+
+  padding: 0.5rem;
+  width: 100%;
+}
+
+.song {
+  display: flex;
+  flex-flow: row nowrap;
+  justify-content: flex-start;
+  align-items: center;
+
+  padding: 0.5rem;
+  border: 1px solid #5a6268;
+  width: 100%;
+}
+
+.song:hover {
+  background-color: #aab0b5;
+  cursor: pointer;
+}
+
+.song div {
+  margin-left: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid #5a6268;
+}
+
+.song p {
+  padding: 0;
+  margin: 0;
 }
