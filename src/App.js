@@ -73,7 +73,7 @@ class SearchBar extends React.Component {
     };
 
     this.search = this.search.bind(this);
-    this.stringify = this.stringify.bind(this);
+    this.recommendations = this.recommendations.bind(this);
     this.handleFocus = this.handleFocus.bind(this);
     this.handleBlur = this.handleBlur.bind(this);
     this.handleChange = this.handleChange.bind(this);
@@ -85,18 +85,8 @@ class SearchBar extends React.Component {
     return text.replace(/\s/g, '%20');
   }
 
-  stringify(json) {
-    let keys = Object.keys(json);
-    let ret = "";
-    keys.forEach(val => {
-      ret += val + "=" + this.searchify(json.val) + "&";
-    });
-
-    return ret;
-  }
-
   async search() {
-    if(this.state.searchValue.length < 3 || this.state.searchValue === this.state.searchPrevious) {
+    if(this.state.searchValue.length < 3 || this.state.searchValue === this.state.searchPrevious || !this.state.accessToken) {
       this.setState({
         searchTracks: undefined
       })
@@ -117,6 +107,34 @@ class SearchBar extends React.Component {
     this.setState({
       searchTracks: response.data.tracks.items
     });
+  }
+
+  async recommendations() {
+    if(this.state.selectedTracks.length <= 0 || !this.state.accessToken) {
+      return false;
+    }
+
+    console.log("getting recommendations");
+    const promises = this.state.selectedTracks.map(async val => {
+      const response =
+        await Axios.get('https://api.spotify.com/v1/recommendations',
+          {params: {
+            seed_tracks: val.id
+          },
+          headers: {
+            Authorization: 'Bearer ' + this.state.accessToken
+          }
+          })
+
+      return response;
+    });
+
+    const recommendedTracks = await Promise.all(promises);
+    
+    var ret = recommendedTracks.flatMap(val => val.data.tracks).map(val => val.id);
+    ret = [...new Set(ret)];
+    console.log(ret);
+    return ret;
   }
 
   handleFocus() {
@@ -175,7 +193,7 @@ class SearchBar extends React.Component {
         </div>
         <div className="song-list flex-center">
           {this.state.selectedTracks && this.state.selectedTracks.map((val, ind) => (<Song track={val} onSelect={this.handleDeselectTrack} key={"list-" + ind}></Song>))}
-          <button>Generate</button>
+          <button onClick={() => this.recommendations()}>Generate</button>
         </div>
       </div>
     );
