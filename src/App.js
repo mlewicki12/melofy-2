@@ -173,7 +173,7 @@ class SearchBar extends React.Component {
 
     const recommendedTracks = await Promise.all(promises);
     
-    var ret = recommendedTracks.flatMap(val => val.data.tracks).map(val => val.id);
+    var ret = recommendedTracks.flatMap(val => val.data.tracks).map(val => val.uri);
     ret = [...new Set(ret)];
 
     this.setState({
@@ -208,10 +208,24 @@ class SearchBar extends React.Component {
       }
     };
 
-    const response =
-      await Axios.post(`https://api.spotify.com/v1/users/${userId}/playlists`, params, config);
+    try {
+      const response =
+        await Axios.post(`https://api.spotify.com/v1/users/${userId}/playlists`, params, config);
 
-    console.log(playlist);
+      console.log(response);
+      if(response.status === 201) {
+        let playlistId = response.data.id;
+        params = {
+          uris: this.state.recommendedTracks
+        }
+
+        config.headers['Content-Type'] = 'application/json';
+
+        await Axios.post(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, params, config);
+      }
+    } catch(error) {
+      this.props.browserHistory.push('/');
+    }
   }
 
   handleFocus() {
@@ -336,7 +350,7 @@ class App extends React.Component {
 
         <div className="main flex-center">
           {this.state.accessToken
-            ? <SearchBar accessToken={this.state.accessToken} />
+            ? <SearchBar accessToken={this.state.accessToken} browserHistory={this.state.browserHistory}/>
             : <LoginButton clientId={this.state.clientId} challenge={this.state.challenge} />}
         </div>
       </div>
