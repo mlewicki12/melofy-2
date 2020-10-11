@@ -197,15 +197,18 @@ class SearchBar extends React.Component {
 
     let userId = user.data.id;
 
+    let params = {
+      name: 'Melofy Playlist!'
+    };
+
+    let config = {
+      headers: {
+        Authorization: 'Bearer ' + this.state.accessToken
+      }
+    };
+
     const playlist =
-      await Axios.post(`https://api.spotify.com/v1/users/${userId}/playlists`, 
-        {params: {
-          name: 'Melofy Playlist!',
-        },
-        headers: {
-          Authorization: 'Bearer ' + this.state.accessToken
-        }
-      });
+      await Axios.post(`https://api.spotify.com/v1/users/${userId}/playlists`, params, config);
 
     console.log(playlist);
   }
