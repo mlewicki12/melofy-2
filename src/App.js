@@ -1,6 +1,8 @@
 
 import React from 'react';
 import Axios from 'axios';
+import qs from 'querystring';
+import { withCookies } from 'react-cookie';
 import './App.css';
 
 const authEndpoint = 'https://accounts.spotify.com/authorize'
@@ -9,12 +11,13 @@ const redirectUri = 'http://localhost:3000'
 const scopes = [
       'user-read-private',
       'user-read-email',
-      'playlist-modify-public'
+      'playlist-modify-public',
 ];
 
 const searchTime = 500;
 
-const hash = window.location.hash.substring(1)
+const hash = window.location.href.split('?').length > 1 && 
+             window.location.href.split('?')[1]
                                  .split('&')
                                  .reduce((initial, item) => {
                                     if(item) {
@@ -25,9 +28,46 @@ const hash = window.location.hash.substring(1)
                                     return initial;
                                  }, {});
 
+// encoding functions pulled from https://stackoverflow.com/questions/59911194/how-to-calculate-pckes-code-verifier/59913241#59913241
+    function sha256(plain) { 
+        // returns promise ArrayBuffer
+        const encoder = new TextEncoder();
+        const data = encoder.encode(plain);
+        return window.crypto.subtle.digest('SHA-256', data);
+    }
+
+    function base64urlencode(a) {
+        // Convert the ArrayBuffer to string using Uint8 array.
+        // btoa takes chars from 0-255 and base64 encodes.
+        // Then convert the base64 encoded to base64url encoded.
+        // (replace + with -, replace / with _, trim trailing =)
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(a)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    async function makeChallenge(v) {
+        const hashed = await sha256(v);
+        const base64encoded = base64urlencode(hashed);
+        return base64encoded;
+    }
+// end pull
+
+function makeVerifier(lengthMin, lengthMax) {
+  let length = (Math.random() * (lengthMax - lengthMin)) + lengthMin;
+
+  let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-";
+  let ret = "";
+  for(var i = 0; i < length; ++i) {
+    ret += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+
+  return ret;
+}
+
 function LoginButton(props) {
   return (
-    <a href={`${authEndpoint}?client_id=${props.clientId}&redirect_uri=${redirectUri}&scopes=${scopes.join('%20')}&response_type=token&show_dialog=true`}>
+    <a href={
+      `${authEndpoint}?response_type=code&client_id=${props.clientId}&redirect_uri=${redirectUri}&code_challenge_method=S256&code_challenge=${props.challenge}&scope=${scopes.join('%20')}&show_dialog=true`}>
       <button>
         Login to Spotify
       </button>
@@ -69,11 +109,13 @@ class SearchBar extends React.Component {
       searchTracks: undefined,
       searchInterval: undefined,
       accessToken: props.accessToken,
-      selectedTracks: []
+      selectedTracks: [],
+      recommendedTracks: []
     };
 
     this.search = this.search.bind(this);
     this.recommendations = this.recommendations.bind(this);
+    this.generatePlaylist = this.generatePlaylist.bind(this);
     this.handleFocus = this.handleFocus.bind(this);
     this.handleBlur = this.handleBlur.bind(this);
     this.handleChange = this.handleChange.bind(this);
@@ -114,7 +156,6 @@ class SearchBar extends React.Component {
       return false;
     }
 
-    console.log("getting recommendations");
     const promises = this.state.selectedTracks.map(async val => {
       const response =
         await Axios.get('https://api.spotify.com/v1/recommendations',
@@ -124,7 +165,7 @@ class SearchBar extends React.Component {
           headers: {
             Authorization: 'Bearer ' + this.state.accessToken
           }
-          })
+        });
 
       return response;
     });
@@ -133,8 +174,40 @@ class SearchBar extends React.Component {
     
     var ret = recommendedTracks.flatMap(val => val.data.tracks).map(val => val.id);
     ret = [...new Set(ret)];
-    console.log(ret);
+
+    this.setState({
+      recommendedTracks: ret
+    });
+
+    this.generatePlaylist();
     return ret;
+  }
+
+  async generatePlaylist() {
+    if(!this.state.accessToken) {
+      return false;
+    }
+
+    const user = 
+      await Axios.get('https://api.spotify.com/v1/me',
+        {headers: {
+          Authorization: 'Bearer ' + this.state.accessToken
+        }
+      });
+
+    let userId = user.data.id;
+
+    const playlist =
+      await Axios.post(`https://api.spotify.com/v1/users/${userId}/playlists`, 
+        {params: {
+          name: 'Melofy Playlist!',
+        },
+        headers: {
+          Authorization: 'Bearer ' + this.state.accessToken
+        }
+      });
+
+    console.log(playlist);
   }
 
   handleFocus() {
@@ -206,14 +279,40 @@ class App extends React.Component {
 
     this.state = {
       clientId: "11d45ba62abd4480bea0d54ad7e9c685",
-      access_token: undefined
+      accessToken: undefined,
+    }
+
+    if(!props.cookies.get('codeVerifier') || !hash.code) {
+      props.cookies.set('codeVerifier', makeVerifier(43, 128), {path: '/'});
     }
   }
 
-  componentDidMount() {
-    if(hash.access_token) {
+  async componentDidMount() {
+    const hashed = await makeChallenge(this.props.cookies.get('codeVerifier'));
+    this.setState({
+      challenge: hashed
+    });
+
+    if(hash.code && !this.state.accessToken) {
+      const params = {
+        client_id: this.state.clientId,
+        grant_type: 'authorization_code',
+        code: hash.code,
+        redirect_uri: redirectUri,
+        code_verifier: this.props.cookies.get('codeVerifier')
+      };
+
+      const config = {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+
+      const response = await Axios.post('https://accounts.spotify.com/api/token', qs.stringify(params), config);
+      console.log(response);
+
       this.setState({
-        accessToken: hash.access_token
+        accessToken: response.data.access_token
       })
     }
   }
@@ -229,11 +328,11 @@ class App extends React.Component {
         <div className="main flex-center">
           {this.state.accessToken
             ? <SearchBar accessToken={this.state.accessToken} />
-            : <LoginButton clientId={this.state.clientId} />}
+            : <LoginButton clientId={this.state.clientId} challenge={this.state.challenge} />}
         </div>
       </div>
     );
   }
 }
 
-export default App;
+export default withCookies(App);
