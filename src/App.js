@@ -3,6 +3,7 @@ import React from 'react';
 import Axios from 'axios';
 import qs from 'querystring';
 import { withCookies } from 'react-cookie';
+import { createBrowserHistory } from 'history';
 import './App.css';
 
 const authEndpoint = 'https://accounts.spotify.com/authorize'
@@ -207,7 +208,7 @@ class SearchBar extends React.Component {
       }
     };
 
-    const playlist =
+    const response =
       await Axios.post(`https://api.spotify.com/v1/users/${userId}/playlists`, params, config);
 
     console.log(playlist);
@@ -283,6 +284,7 @@ class App extends React.Component {
     this.state = {
       clientId: "11d45ba62abd4480bea0d54ad7e9c685",
       accessToken: undefined,
+      browserHistory: createBrowserHistory()
     }
 
     if(!props.cookies.get('codeVerifier') || !hash.code) {
@@ -311,12 +313,16 @@ class App extends React.Component {
         }
       }
 
-      const response = await Axios.post('https://accounts.spotify.com/api/token', qs.stringify(params), config);
-      console.log(response);
+      try {
+        const response = await Axios.post('https://accounts.spotify.com/api/token', qs.stringify(params), config);
 
-      this.setState({
-        accessToken: response.data.access_token
-      })
+        this.setState({
+          accessToken: response.data.access_token
+        });
+      } catch(error) {
+        this.state.browserHistory.push('/');
+      }
+
     }
   }
 
